@@ -51,6 +51,13 @@
     }
   }
 
+  function updateLastUpdate(timestamp = new Date()) {
+    const lastUpdateText = document.getElementById("lastUpdate");
+    if (lastUpdateText) {
+      lastUpdateText.textContent = `آخر تحديث: ${formatDateTime(timestamp)}`;
+    }
+  }
+
   function toArabicNumbers(str) {
     return str.replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
   }
@@ -173,11 +180,6 @@
     applyFilters();
     renderAll();
 
-    // تحديث آخر تحديث للبيانات
-    const lastUpdateText = document.getElementById("lastUpdate");
-    if (lastUpdateText) {
-      lastUpdateText.textContent = "آخر تحديث: " + formatDateTime(new Date());
-    }
   }
 
   function buildFilters() {
@@ -864,19 +866,6 @@
     renderTable();
   }
 
-  // ======== جلب وتهيئة البيانات ========
-  async function fetchDataAndHydrate() {
-    const data = await fetchSheetsOnce();
-    if (data) {
-      hydrate(data);
-      const lastUpdateText = document.getElementById("lastUpdate");
-      if (lastUpdateText) {
-        lastUpdateText.textContent = "آخر تحديث: " + formatDateTime(new Date());
-      }
-    }
-    return data;
-  }
-
   // ======== الأحداث ========
   function initializeDashboard() {
     console.log("Initializing dashboard...");
@@ -1002,20 +991,22 @@
       });
     }
 
-    const elRefreshBtn = document.getElementById("refreshBtn");
-    if (elRefreshBtn) {
-      elRefreshBtn.addEventListener("click", async () => {
-        showLoader();
-        await fetchDataAndHydrate();
-        hideLoader();
-      });
-    }
-
     state.refreshIntervalId = setInterval(async () => {
       console.log("Auto-refreshing data...");
       await fetchDataAndHydrate();
     }, 10800000);
   }
+
+  async function manualDashboardRefresh() {
+    showLoader();
+    try {
+      return await fetchDataAndHydrate();
+    } finally {
+      hideLoader();
+    }
+  }
+
+  window.manualDashboardRefresh = manualDashboardRefresh;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeDashboard);
@@ -1025,13 +1016,14 @@
 
   async function fetchDataAndHydrate() {
     const data = await fetchSheetsOnce();
-    if (data) {
-      state.projectDates = data.projectDates;
-      hydrate(data);
-      state.lastUpdated = new Date();
-      document.getElementById(
-        "lastUpdate"
-      ).textContent = `آخر تحديث: ${formatDateTime(state.lastUpdated)}`;
+    if (!data) {
+      return false;
     }
+
+    state.projectDates = data.projectDates;
+    hydrate(data);
+    state.lastUpdated = new Date();
+    updateLastUpdate(state.lastUpdated);
+    return true;
   }
 })();

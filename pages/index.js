@@ -9,31 +9,38 @@ const Script = dynamic(() => import('next/script'), {
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState('—');
   
   const fetchData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
+      if (typeof window !== 'undefined' && window.manualDashboardRefresh) {
+        const success = await window.manualDashboardRefresh();
+        if (!success) {
+          throw new Error('تعذر تحديث البيانات');
+        }
+        return;
+      }
+
       const res = await fetch(`/api/sheets`);
       const json = await res.json();
-      
+
       if (json.error) {
         setError(json.error);
         console.error('API Error:', json.error);
         return;
       }
-      
+
       // Update the data in the window object for the app.js to use
-      window.dashboardData = json.data;
-      
-      // Trigger the update function if it exists
-      if (window.updateDashboard) {
-        window.updateDashboard();
+      if (typeof window !== 'undefined') {
+        window.dashboardData = json.data;
+
+        // Trigger the update function if it exists
+        if (window.updateDashboard) {
+          window.updateDashboard();
+        }
       }
-      
-  setLastUpdate(new Date().toLocaleString('ar-SA'));
     } catch (e) {
       setError(e.message);
       console.error('Failed to fetch data:', e);
@@ -74,7 +81,7 @@ export default function Home() {
             <div className="tab" data-tab="details">التفاصيل</div>
           </div>
           <div className="nav-controls">
-            <div id="lastUpdate" className="lastUpdate">آخر تحديث: {lastUpdate}</div>
+            <div id="lastUpdate" className="lastUpdate">آخر تحديث: —</div>
             <button 
               onClick={fetchData} 
               className="btn refresh-btn" 
