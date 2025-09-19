@@ -24,6 +24,7 @@
     selectedItem: null,
     lastUpdated: null,
     refreshIntervalId: null,
+    searchTerm: "",
   };
 
   // ======== دوال مساعدة ========
@@ -138,6 +139,7 @@
     state.selectedSite = null;
     state.selectedPhase = null;
     state.selectedItem = null;
+    state.searchTerm = "";
 
     // Update data
     const detailed = (data.detailed || data.data?.detailed || [])
@@ -177,6 +179,11 @@
     const lastUpdateText = document.getElementById("lastUpdate");
     if (lastUpdateText) {
       lastUpdateText.textContent = "آخر تحديث: " + formatDateTime(new Date());
+    }
+
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+      searchInput.value = "";
     }
   }
 
@@ -796,14 +803,31 @@
     window.addEventListener('resize', resizeMap);
   }
 
+  function getTableDetailedData() {
+    const searchTerm = (state.searchTerm || "").trim().toLowerCase();
+    if (!searchTerm) {
+      return state.filtered.detailed;
+    }
+
+    return state.filtered.detailed.filter((row) =>
+      Object.values(row).some((val) =>
+        String(val ?? "").toLowerCase().includes(searchTerm)
+      )
+    );
+  }
+
+  function handleTableSearch(event) {
+    state.searchTerm = (event.target.value || "").toLowerCase();
+    renderTable();
+  }
+
   // ======== رندر الجدول ========
   function renderTable() {
     const tableHead = document.getElementById("tableHead");
     const tableBody = document.getElementById("tableBody");
     const tableFooter = document.getElementById("tableFooter");
-    const searchInput = document.getElementById("searchInput");
 
-    const detailedData = state.filtered.detailed;
+    const detailedData = getTableDetailedData();
     const headers = Object.keys(detailedData[0] || {});
 
     tableHead.innerHTML = `<tr>${headers
@@ -844,15 +868,6 @@
       });
     });
 
-    searchInput.addEventListener("input", () => {
-      const searchTerm = searchInput.value.toLowerCase();
-      state.filtered.detailed = state.raw.detailed.filter((row) =>
-        Object.values(row).some((val) =>
-          String(val).toLowerCase().includes(searchTerm)
-        )
-      );
-      renderTable();
-    });
   }
 
   // ======== رندر الكل ========
@@ -958,6 +973,12 @@
       applyFilters();
       renderAll();
     });
+
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput && !searchInput.dataset.listenerAttached) {
+      searchInput.addEventListener("input", handleTableSearch);
+      searchInput.dataset.listenerAttached = "true";
+    }
 
     // Safe DOM bindings: check element exists before attaching listeners
     const elTableSiteFilter = document.getElementById("tableSiteFilter");
